@@ -662,6 +662,7 @@
         gradeNames: "flock.synth", 
         model: {
             beat: 0,
+            beatinc: 1,
             glitches: {
                 expander: {
                     func: function(that){
@@ -685,6 +686,9 @@
                     },
                     args: ["{that}"]
                 }
+            },
+            pushmapping: {
+                buttons: []
             }
         },
         synthDef: {
@@ -700,8 +704,10 @@
                         if (that.model.glitches[that.model.beat].prob > Math.random()){
                             that.model.glitches[that.model.beat].set("trig.source", 1);
                         }
-                        that.model.beat++;
+                        that.model.beat += that.model.beatinc;
                         that.model.beat = that.model.beat % that.model.glitches.length;
+                        // trigger lights if available?
+                        // 
                     },
                     args: ["{that}"]
                 }
@@ -722,6 +728,18 @@
                 },
                 args: ["{that}"]
             },
+            setProb: {
+                func: function(that, prob, step=-1){
+                    if (step > -1){
+                        that.model.glitches[step].prob = prob;
+                    }else{
+                        for( var i = 0; i < that.model.glitches.length; i++){
+                            that.model.glitches[i].prob = prob;
+                        }
+                    }
+                },
+                args: ["{that}", "{arguments}.0", "{arguments}.1" ]
+            }
         }
     });
 
@@ -961,6 +979,27 @@
 
     adam.freqtoms = function(f){ return (1/f) * 1000 };
     adam.mstofreq = function(ms){ return (1/ms) * 1000 };
+    /**
+     * Implementation from LODASH
+     *  * The base implementation of `_.clamp` which doesn't coerce arguments.
+     *   *
+     *    * @private
+     *     * @param {number} number The number to clamp.
+     *      * @param {number} [lower] The lower bound.
+     *       * @param {number} upper The upper bound.
+     *        * @returns {number} Returns the clamped number.
+     *         */
+    adam.clamp = function (number, lower, upper) {
+        if (number === number) {
+            if (upper !== undefined) {
+                number = number <= upper ? number : upper;
+            }
+            if (lower !== undefined) {
+                number = number >= lower ? number : lower;
+            }
+        }
+        return number;
+    }
 
     //// adapted from STD.dbtorms in ChucK
     adam.dbtorms = function (val){
