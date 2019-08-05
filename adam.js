@@ -1,6 +1,6 @@
 (function(){
     var adam = fluid.registerNamespace("adam");
-
+    //var numChans = flock.enviro.shared.audioSystem.model.chans;
 
 
     /*noizilator
@@ -12,7 +12,6 @@
      * sawOsc -> flock.ugen.distortion.tanh -> env -> flock.ugen.distortion.deJonge
      * tarrabiaDeJonge
      */
-
     fluid.defaults("adam.noizilator", {
         gradeNames: "flock.synth",
         synthDef: {
@@ -69,6 +68,7 @@
     fluid.defaults("adam.flutter", {
         gradeNames: "adam.bop", 
         synthDef: {
+            id: "root",
             ugen: "flock.ugen.triOsc",
             freq: {
                 ugen: "flock.ugen.square",
@@ -77,12 +77,20 @@
                 add: 500
             }
         }
+        /*
+           listeners: {
+               noteOn: {
+                   funcName: "adam.flutter.hardsync",
+                   args: ["{that}", "{arguments}.0"]
+               }
+           }
+         * */
     });
 
-
-    adam.flutter.hardsync = function(freq, that){
+    adam.flutter.hardsync = function(that, freq){
         // this.set("{that}".); 
-        // this.set("{that}.freq.phase", 0);
+        that.set("root.phase", 0.5);
+        that.set("root.freq.phase", 0);
     };
 
     fluid.defaults("adam.tick", {
@@ -219,6 +227,14 @@
 
     fluid.defaults("adam.octopus", {
         gradeNames: "flock.synth", 
+        listeners: {
+            onCreate: {
+                func: function(){
+                    var numChans = flock.enviro.shared.audioSystem.model.chans;
+                    // build the array based on channels available
+                }
+            }
+        },
         invokers: {
             scatter: {
                 funcName: "adam.octopus.scatterfreqs", 
@@ -436,7 +452,7 @@
         }
     });
     */
-
+    // TODO make this more random...  functiongenerator then randomize freq?
     fluid.defaults("adam.bass.randomstereo", {
         gradeNames: "flock.synth", 
             synthDef: [{
@@ -619,25 +635,25 @@
             grandrone: {
                 type: "adam.bufferPlayingSynth",
                 options: {
-                    bufferUrl: "grandrone.wav"
+                    //bufferUrl: "grandrone.wav"
                 }
             },
             freezer: {
                 type: "adam.bufferPlayingSynth",
                 options: {
-                    bufferUrl: "freezer.wav"
+                    //bufferUrl: "freezer.wav"
                 }
             },
             newdrone: {
                 type: "adam.bufferPlayingSynth", 
                 options: {
-                    bufferUrl: "newdrone.wav"
+                    //bufferUrl: "newdrone.wav"
                 }
             },
             cymbal: {
                 type: "adam.bufferPlayingSynth", 
                 options: {
-                    bufferUrl: "cymballike.wav"
+                    //bufferUrl: "cymballike.wav"
                 }
             }
         }
@@ -706,11 +722,17 @@
                         }
                         that.model.beat += that.model.beatinc;
                         that.model.beat = that.model.beat % that.model.glitches.length;
-                        // trigger lights if available?
-                        // 
                     },
                     args: ["{that}"]
                 }
+            }
+        },
+        listeners: {
+            noteOn: {
+                function: function(that, msg){
+                    console.log();
+                },
+                args: ["{that}", "{arguments.0"]
             }
         },
         invokers:{
@@ -1001,7 +1023,16 @@
         return number;
     }
 
+    adam.dbtoa = function(val) { 
+        return Math.pow(10,val/20); 
+    };
+
+    adam.scale = function (in_min, in_max, out_min, out_max) {
+        return (this - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+    };
+
     //// adapted from STD.dbtorms in ChucK
+    // maps 0-100db input to 0-1 rms output, useful for MIDI velocity mapping
     adam.dbtorms = function (val){
         var logten = Math.log(10);
         return  (val<=0)? 0: Math.exp( (logten * 0.05) * (val-100));
