@@ -12,6 +12,31 @@
      * sawOsc -> flock.ugen.distortion.tanh -> env -> flock.ugen.distortion.deJonge
      * tarrabiaDeJonge
      */
+
+    fluid.defaults("adam.stereosquare", {
+        gradenames: "flock.synth",
+        synthDef: [{
+            ugen: "flock.ugen.squareOsc",
+            freq: 100,
+            duty: {
+                ugen: "flock.ugen.triangle",
+                freq: {
+                    ugen: "flock.ugen.sin",
+                    freq: 1.17391,
+                    add: 6
+                },
+                mul: 0.2,
+                add: 0.5
+            }
+        },{
+            ugen: "flock.ugen.squareOsc",
+            freq: 101,
+            duty: 0.5 // ??
+        }] 
+    });
+
+
+
     fluid.defaults("adam.noizilator", {
         gradeNames: "flock.synth",
         synthDef: {
@@ -227,13 +252,95 @@
 
     fluid.defaults("adam.octopus", {
         gradeNames: "flock.synth", 
+        thesynths: [
+            {
+                id: "f1",
+                ugen: "flock.ugen.sinOsc",
+                freq: 300,
+                mul: 0.0
+            },
+            {
+                id: "f2",
+                ugen: "flock.ugen.sinOsc",
+                freq: 302,
+                mul: 0.
+            },
+            {
+                id: "f3",
+                ugen: "flock.ugen.sinOsc",
+                freq: 303,
+                mul: 0.
+            },
+            {
+                id: "f4",
+                ugen: "flock.ugen.sinOsc",
+                freq: 305,
+                mul: 0.
+            },
+            {
+                id: "f5",
+                ugen: "flock.ugen.sinOsc",
+                freq: 307,
+                mul: 0.
+            },
+            {
+                id: "f6",
+                ugen: "flock.ugen.sinOsc",
+                freq: 308,
+                mul: 0.
+            },
+            {
+                id: "f7",
+                ugen: "flock.ugen.sinOsc",
+                freq: 311,
+                mul: 0.
+            },
+            {
+                id: "f8",
+                ugen: "flock.ugen.sinOsc",
+                freq: 314,
+                mul: 0.
+            }
+        ],
         listeners: {
             onCreate: {
-                func: function(){
+                func: function(that){
                     var numChans = flock.enviro.shared.audioSystem.model.chans;
-                    // build the array based on channels available
+                    console.log("octopus is under development");
+                    /*
+                    if (numChans >= 8){
+                        return; 
+                    }
+                    that.optons.synthDef = {
+                        ugen : "flock.ugen.sum"
+                    }
+
+                    if (numChans === 2){
+                        var leftchan = [];
+                        var rightchan = [];
+
+                        return;
+                    }
+                    if ( numChans === 4){
+                        var frontleft = [];
+                        var frontright = [];
+                        var rearleft = [];
+                        var rearright = [];
+                    }
+                    console.log(" uh oh - octopus needs help");
+                    */
+                },
+                args: ["{that}"]
+
+            }
+        },
+        dynamicComponents: {
+            /*
+            synthDef: {
+                func: function(){
                 }
             }
+            */
         },
         invokers: {
             scatter: {
@@ -587,21 +694,59 @@
     });
 
     ///////////////////////////////
-    /// buffers
+    /// samplers
     ///////////////////////////////
-    fluid.defaults("adam.bufferPlayingSynth", {
+
+    fluid.defaults("adam.sampler.simple", {
+        gradeNames: ["flock.synth"],
+        bufferUrl: "fluid.mustBeOverridden",
+        synthDef:{
+            ugen: "flock.ugen.playBuffer",
+            id: "sample",
+            buffer:{
+                url: "{that}.options.bufferUrl"
+            },
+            start: 0,
+            loop: 0,
+            trigger:{
+                ugen: "flock.ugen.valueChangeTrigger",
+                source: 0
+            }
+        },
+        invokers: {
+            noteOn:{
+                func: function(that, vol = 1){
+                    that.set({
+                        "sample.mul": vol,
+                        "sample.trigger.source", 1
+                    });
+                },
+                args: ["{that}", "{arguments}.0"]
+            },
+            ripple: {
+                func: "{that}.set",
+                args: ["sample.mul", { ugen: "flock.ugen.squareOsc", add: 0.5, mul: 0.5, freq: 5 }]
+            }
+        }
+    });
+
+
+    fluid.defaults("adam.sampler.looper", {
+        // figure out how to extend to this way
+        //gradeNames: "adam.sampler.simple", 
         gradeNames: "flock.synth",
         bufferUrl: "fluid.mustBeOverridden",
+        loop: 1, 
         synthDef: {
-            id: "mysample",
+            id: "sample",
             ugen: "flock.ugen.playBuffer",
             buffer: {
                 url: "{that}.options.bufferUrl"
             },
-            loop: 1,
+            loop: "{that}.options.loop",
+            mul: 0,
             start: 0,
             end: 1,
-            mul: 0
         },
         model: {
             fadein: {
@@ -620,40 +765,40 @@
         invokers: {
             fadein: {
                 func: "{that}.set",
-                args: ["mysample.mul",  "{that}.model.fadein"]
+                args: ["sample.mul",  "{that}.model.fadein"]
             },
             fadeout: {
                 func: "{that}.set",
-                args: ["mysample.mul",  "{that}.model.fadeout"]
+                args: ["sample.mul",  "{that}.model.fadeout"]
             }
         }
     });
 
-    fluid.defaults("adam.bufferBand", {
+    fluid.defaults("adam.sampler.bufferBand", {
         gradeNames: "flock.band",
         components: {
             grandrone: {
                 type: "adam.bufferPlayingSynth",
                 options: {
-                    //bufferUrl: "grandrone.wav"
+                    bufferUrl: "grandrone.wav"
                 }
             },
             freezer: {
                 type: "adam.bufferPlayingSynth",
                 options: {
-                    //bufferUrl: "freezer.wav"
+                    bufferUrl: "freezer.wav"
                 }
             },
             newdrone: {
                 type: "adam.bufferPlayingSynth", 
                 options: {
-                    //bufferUrl: "newdrone.wav"
+                    bufferUrl: "newdrone.wav"
                 }
             },
             cymbal: {
                 type: "adam.bufferPlayingSynth", 
                 options: {
-                    //bufferUrl: "cymballike.wav"
+                    bufferUrl: "cymballike.wav"
                 }
             }
         }
@@ -673,7 +818,6 @@
     });
 
 
-    /////// NOW WORKING!!
     fluid.defaults("adam.glitchseq", {
         gradeNames: "flock.synth", 
         model: {
@@ -727,6 +871,8 @@
                 }
             }
         },
+        /*
+         * this namespace is a problem, why?
         listeners: {
             noteOn: {
                 function: function(that, msg){
@@ -735,6 +881,7 @@
                 args: ["{that}", "{arguments.0"]
             }
         },
+        */
         invokers:{
             scatter: {
                 func: function(that){
@@ -1038,6 +1185,19 @@
         return  (val<=0)? 0: Math.exp( (logten * 0.05) * (val-100));
     };
 
+    adam.makeline = function(start, end, duration = 10, name){
+        var theline = {
+            ugen: "flock.ugen.line",
+            start: start,
+            end: end, 
+            dur: duration
+        };
+        if(name !== undefined){
+            theline.id = name;
+        }
+        return theline;
+    };
+
     // detect node.js environement
     if (typeof module !== 'undefined' && module.exports) {
         fluid.module.register("adam", __dirname, require);
@@ -1050,6 +1210,10 @@
 // TODO
 ///////////////////
 
+//////////
+//  Synth Buses
+//////////
+// ideally this is automatic-ish
 
 //////////
 // Array of Synths
