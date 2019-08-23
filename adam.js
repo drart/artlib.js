@@ -13,6 +13,7 @@
      * tarrabiaDeJonge
      */
 
+    ////// IN PROGRESS
     fluid.defaults("adam.stereosquare", {
         gradenames: "flock.synth",
         synthDef: [{
@@ -56,6 +57,28 @@
                     }
              }
         } 
+    });
+
+    fluid.defaults("adam.sinekick", {
+        gradeNames: "flock.synth",
+        synthDef: {
+            ugen: "flock.ugen.sinOsc",
+            id: "kicky",
+            freq: 95,
+            phase: 3.14/2,
+            mul: {
+                ugen: "flock.ugen.envGen",
+                id: "env",
+                envelope: {
+                    type: "flock.envelope.adsr",
+                    attack: 0.001,
+                    decay: 0.5,
+                    sustain: 0,
+                    release: 0,
+                },
+                //mul: 0.25
+            }
+        }
     });
 
     //////
@@ -129,8 +152,8 @@
                 ugen: "flock.ugen.whiteNoise"
             },
             mul: {
+                id: "env",
                 ugen: "flock.ugen.asr",
-                start: 0.0,
                 attack: 0.1,
                 sustain: 0.1,
                 release: 0.5,
@@ -173,16 +196,24 @@
     fluid.defaults("adam.amfm", {
         gradeNames: "flock.synth", 
                 synthDef: {
-                    id: "granny",
-                    ugen: "flock.ugen.sinOsc",
+                    id: "synth",
+                    ugen: "flock.ugen.sawOsc",
                     freq: {
+                        id: "fmod",
                         ugen: "flock.ugen.sinOsc",
-                        freq: 200,
+                        freq: {
+                            ugen: "flock.ugen.sin",
+                            freq: 4,
+                            add: 40,
+                            mul: 4
+                        },
                         mul: 300,
                         add: 500
                     },
                     mul: {
+                        id: "amod",
                         ugen: "flock.ugen.sinOsc",
+                        freq: 167,
                         mul: 0,
                         add: 0.5
                     }
@@ -205,6 +236,7 @@
 
     fluid.defaults("adam.floaty", {
         gradeNames: "flock.synth", 
+        synthDef:{
             ugen: "flock.ugen.sin",
             expand: 6,
             freq: {
@@ -216,13 +248,14 @@
             mul: {
                 ugen: "flock.ugen.envGen",
                 envelope: {
-                type: "flock.envelope.sin",
-                duration: 0.5
-            },
-            gate: {
-                ugen: "flock.ugen.lfPulse",
-                width: 0.5,
-                freq: 1
+                    type: "flock.envelope.sin",
+                    duration: 0.5
+                },
+                gate: {
+                    ugen: "flock.ugen.lfPulse",
+                    width: 0.5,
+                    freq: 1
+                }
             }
         }
     });
@@ -250,8 +283,70 @@
         }  
     });
 
+
+
+    // BIGGER SYNTHS
+    fluid.defaults("adam.synth.quadvoicepanning", {
+        gradeNames: "flock.synth",
+        synthDef:{
+            id: "root",
+            ugen: "flock.ugen.pan2",
+            pan: {
+                ugen: "flock.ugen.sin",
+                freq: 0.1
+            },
+            source:{
+                ugen: "flock.ugen.sum",
+                mul: 0,
+                sources: [
+                {
+                    id: "voice1",
+                    ugen: "flock.ugen.sawOsc",
+                    freq: 442,
+
+                },
+                {
+                    id: "voice2",
+                    ugen: "flock.ugen.sawOsc",
+                    freq: 445
+                },
+                {
+                    id: "voice3",
+                    ugen: "flock.ugen.sawOsc",
+                    freq: 500                    
+                },
+                {
+                    id: "voice4",
+                    ugen: "flock.ugen.sawOsc",
+                    freq: 600
+                }
+                ]
+            }
+       },
+       invokers: {
+           changenotes: {
+               func: function(that, note){
+                   var notefreq = flock.midiFreq( note );
+                   if (that.get("root.source.mul") === 0){
+                       that.set("root.source.mul", 0.25);
+                   }
+                   that.set({
+                       "voice1.freq": notefreq,
+                       "voice2.freq": notefreq *1.02,
+                       "voice3.freq": notefreq *2.02,
+                       "voice4.freq": notefreq *1.52,
+                   });
+               },
+               args: ["{that}", "{arguments}.0"]
+           }
+       }
+    });
+
+
+
     fluid.defaults("adam.octopus", {
         gradeNames: "flock.synth", 
+        frequencies : [300,302,303,305,307,308,311,314],
         thesynths: [
             {
                 id: "f1",
@@ -311,14 +406,26 @@
                     if (numChans >= 8){
                         return; 
                     }
-                    that.optons.synthDef = {
+                    
+                    that.optionssynthDef = {
+                        id: "sum",
                         ugen : "flock.ugen.sum"
                     }
 
                     if (numChans === 2){
                         var leftchan = [];
                         var rightchan = [];
+                        var thing = {
+                            ugen: "flock.ugen.sinOsc",
+                            mul: 0
+                        };
 
+                        for (var i = 0; i < 8; i++){
+                            thing.id = "f" + (i+1);
+                            thing.freq = that.options.freqs[i];
+                            (i % 2 == 0) ? leftchan.push(thing) : rightchan.push(thing);
+                        }
+                        that.set("sum.sources", [leftchan, rightchan] );
                         return;
                     }
                     if ( numChans === 4){
@@ -326,6 +433,8 @@
                         var frontright = [];
                         var rearleft = [];
                         var rearright = [];
+
+                        return;
                     }
                     console.log(" uh oh - octopus needs help");
                     */
@@ -718,7 +827,7 @@
                 func: function(that, vol = 1){
                     that.set({
                         "sample.mul": vol,
-                        "sample.trigger.source", 1
+                        "sample.trigger.source": 1
                     });
                 },
                 args: ["{that}", "{arguments}.0"]
@@ -861,6 +970,8 @@
             options: {
                 callback: {
                     func: function(that){
+                        that.events.beat.fire(that.model.beat);
+                        //console.log("kjfklajfd");
                         if (that.model.glitches[that.model.beat].prob > Math.random()){
                             that.model.glitches[that.model.beat].set("trig.source", 1);
                         }
@@ -882,6 +993,9 @@
             }
         },
         */
+        events: {
+            beat: null,
+        },
         invokers:{
             scatter: {
                 func: function(that){
@@ -1145,19 +1259,19 @@
         }
     });
 
-
     adam.freqtoms = function(f){ return (1/f) * 1000 };
     adam.mstofreq = function(ms){ return (1/ms) * 1000 };
+
     /**
-     * Implementation from LODASH
-     *  * The base implementation of `_.clamp` which doesn't coerce arguments.
-     *   *
-     *    * @private
-     *     * @param {number} number The number to clamp.
-     *      * @param {number} [lower] The lower bound.
-     *       * @param {number} upper The upper bound.
-     *        * @returns {number} Returns the clamped number.
-     *         */
+     ** Implementation from LODASH
+     ** The base implementation of `_.clamp` which doesn't coerce arguments.
+     **
+     ** @private
+     ** @param {number} number The number to clamp.
+     ** @param {number} [lower] The lower bound.
+     ** @param {number} upper The upper bound.
+     ** @returns {number} Returns the clamped number.
+     **/
     adam.clamp = function (number, lower, upper) {
         if (number === number) {
             if (upper !== undefined) {
@@ -1233,28 +1347,6 @@ var synths = flock.synth({
 });
 
 
-*/
-
-//////////
-//BUFFERS
-//////////
-
-
-/*
-var buffer;
-flock.audio.decode({
-    src: "beat1.wav",
-    success: function (bufDesc) {
-        buffer = bufDesc;
-        buffer.id = "thing1";
-        flock.environment.registerBuffer(buffer);
-        console.log(buffer);
-        waveform1.setBuffer(buffer._buffer);
-    },
-    error: function (err) {
-        console.log("There was an error while trying to load the convolver’s impulse reponse audio file.", err);
-    }
-});
 */
 
 /*
